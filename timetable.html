@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editable Semester Timetable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+            background-color: #f7f9fc;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px;
+        }
+        .control-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #555;
+        }
+        .control-group input, .control-group select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .button-group {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+        .button-group button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #add-course-btn {
+            background-color: #007bff;
+        }
+        #add-course-btn:hover {
+            background-color: #0056b3;
+        }
+        #clear-btn {
+            background-color: #dc3545;
+        }
+        #clear-btn:hover {
+            background-color: #c82333;
+        }
+        #added-courses {
+            margin-top: 10px;
+        }
+        #course-list {
+            list-style-type: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        #course-list li {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .remove-course-btn {
+            background: rgba(0,0,0,0.2);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            font-size: 10px;
+            line-height: 16px;
+            text-align: center;
+            padding: 0;
+        }
+        .remove-course-btn:hover {
+            background: rgba(0,0,0,0.4);
+        }
+
+        .timetable-container {
+            display: flex;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: 1px solid #ccc;
+            overflow-x: auto;
+        }
+        table {
+            border-collapse: collapse;
+            white-space: nowrap;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            text-align: center;
+            min-width: 80px;
+            height: 35px;
+            font-size: 12px;
+            position: relative;
+        }
+        td {
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        td[contenteditable="true"]:focus {
+            background-color: #f0f8ff;
+            outline: 2px solid #007bff;
+            z-index: 10;
+        }
+        .header-row th {
+            font-weight: bold;
+            color: white;
+            padding: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        .theory-header { background-color: #007bff; }
+        .lab-header { background-color: #d9534f; }
+        .day-header {
+            font-weight: bold;
+            background-color: #f7f7f7;
+            width: 50px;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+        .lunch-break {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            background-color: #f0ad4e;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+            padding: 10px 5px;
+            border-left: 1px solid #ccc;
+            border-right: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Automatic Timetable Generator</h1>
+    <div class="controls">
+        <div class="control-group">
+            <label for="course-name">Course Name</label>
+            <input type="text" id="course-name" placeholder="e.g., Operating Systems">
+        </div>
+        <div class="control-group">
+            <label for="short-name">Short Name</label>
+            <input type="text" id="short-name" placeholder="e.g., OS" maxlength="10">
+        </div>
+        <div class="control-group">
+            <label for="credits">Credits</label>
+            <select id="credits">
+                <option value="4">4 Credits</option>
+                <option value="3">3 Credits</option>
+                <option value="2">2 Credits</option>
+                <option value="1">1 Credit</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="theory-slot">Theory Slot</label>
+            <select id="theory-slot">
+                <option value="">None</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="lab-slots">Lab Slots</label>
+            <input type="text" id="lab-slots" placeholder="e.g., L1+L2 or l3,l4">
+        </div>
+        <div class="button-group">
+            <button id="add-course-btn">Add Course</button>
+            <button id="clear-btn">Clear Timetable</button>
+        </div>
+    </div>
+    <div id="added-courses">
+        <ul id="course-list"></ul>
+    </div>
+
+
+    <div class="timetable-container">
+        <div class="pre-lunch-table">
+            <table>
+                <thead class="header-row">
+                    <tr>
+                        <th class="theory-header">Theory Hours</th>
+                        <th class="theory-header">8.00 - 8.50</th>
+                        <th class="theory-header">9.00 - 9.50</th>
+                        <th class="theory-header">10.00 - 10.50</th>
+                        <th class="theory-header">11.00 - 11.50</th>
+                        <th class="theory-header">11.50 - 12.40</th>
+                        <th class="theory-header">12.40 - 01.30</th>
+                    </tr>
+                    <tr>
+                        <th class="lab-header">Lab Hours</th>
+                        <th class="lab-header">8.00 - 8.50</th>
+                        <th class="lab-header">9.00 - 9.50</th>
+                        <th class="lab-header">09.50 - 10.40</th>
+                        <th class="lab-header">10.50 - 11.40</th>
+                        <th class="lab-header">11.50 - 12.40</th>
+                        <th class="lab-header">12.40 - 01.30</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="day-header">TUE</td>
+                        <td data-slot="TFF1" contenteditable="true">TFF1</td><td data-slot="A1" contenteditable="true">A1</td><td data-slot="B1" contenteditable="true">B1</td><td data-slot="TC1/G1" contenteditable="true">TC1/G1</td><td data-slot="D1" contenteditable="true">D1</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">Lab</td>
+                        <td data-slot="L1" contenteditable="true">L1</td><td data-slot="L2" contenteditable="true">L2</td><td data-slot="L3" contenteditable="true">L3</td><td data-slot="L4" contenteditable="true">L4</td><td data-slot="L5" contenteditable="true">L5</td><td data-slot="L6" contenteditable="true">L6</td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">WED</td>
+                        <td data-slot="TGG1" contenteditable="true">TGG1</td><td data-slot="D1" contenteditable="true">D1</td><td data-slot="F1" contenteditable="true">F1</td><td data-slot="E1/SC2" contenteditable="true">E1/SC2</td><td data-slot="B1" contenteditable="true">B1</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">Lab</td>
+                        <td data-slot="L7" contenteditable="true">L7</td><td data-slot="L8" contenteditable="true">L8</td><td data-slot="L9" contenteditable="true">L9</td><td data-slot="L10" contenteditable="true">L10</td><td data-slot="L11" contenteditable="true">L11</td><td data-slot="L12" contenteditable="true">L12</td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">THU</td>
+                        <td data-slot="TEE1" contenteditable="true">TEE1</td><td data-slot="C1" contenteditable="true">C1</td><td data-slot="TD1/TG1" contenteditable="true">TD1/TG1</td><td data-slot="TAA1/ECS" contenteditable="true">TAA1/ECS</td><td data-slot="TBB1/CLUB" contenteditable="true">TBB1/CLUB</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">Lab</td>
+                        <td data-slot="L13" contenteditable="true">L13</td><td data-slot="L14" contenteditable="true">L14</td><td data-slot="L15" contenteditable="true">L15</td><td data-slot="L16" contenteditable="true">L16</td><td data-slot="L17" contenteditable="true">L17</td><td data-slot="L18" contenteditable="true">L18</td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">FRI</td>
+                        <td data-slot="TCC1" contenteditable="true">TCC1</td><td data-slot="TB1" contenteditable="true">TB1</td><td data-slot="TA1" contenteditable="true">TA1</td><td data-slot="F1" contenteditable="true">F1</td><td data-slot="TE1/SD2" contenteditable="true">TE1/SD2</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">Lab</td>
+                        <td data-slot="L19" contenteditable="true">L19</td><td data-slot="L20" contenteditable="true">L20</td><td data-slot="L21" contenteditable="true">L21</td><td data-slot="L22" contenteditable="true">L22</td><td data-slot="L23" contenteditable="true">L23</td><td data-slot="L24" contenteditable="true">L24</td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">SAT</td>
+                        <td data-slot="TDD1" contenteditable="true">TDD1</td><td data-slot="E1/SE2" contenteditable="true">E1/SE2</td><td data-slot="C1" contenteditable="true">C1</td><td data-slot="TF1/G1" contenteditable="true">TF1/G1</td><td data-slot="A1" contenteditable="true">A1</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td class="day-header">Lab</td>
+                        <td data-slot="L25" contenteditable="true">L25</td><td data-slot="L26" contenteditable="true">L26</td><td data-slot="L27" contenteditable="true">L27</td><td data-slot="L28" contenteditable="true">L28</td><td data-slot="L29" contenteditable="true">L29</td><td data-slot="L30" contenteditable="true">L30</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="lunch-break">LUNCH</div>
+        <div class="post-lunch-table">
+            <table>
+                <thead class="header-row">
+                    <tr>
+                        <th class="theory-header">2.00 - 2.50</th><th class="theory-header">2.50 - 3.40</th><th class="theory-header">4.00 - 4.50</th><th class="theory-header">4.50 - 5.40</th><th class="theory-header">6.00 - 6.50</th><th class="theory-header">6.50 - 7.30</th>
+                    </tr>
+                    <tr>
+                        <th class="lab-header">2.00 - 2.50</th><th class="lab-header">2.50 - 3.40</th><th class="lab-header">4.00 - 4.50</th><th class="lab-header">4.50 - 5.40</th><th class="lab-header">6.00 - 6.50</th><th class="lab-header">6.50 - 7.30</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td data-slot="F2" contenteditable="true">F2</td><td data-slot="A2" contenteditable="true">A2</td><td data-slot="B2" contenteditable="true">B2</td><td data-slot="TC2/G2" contenteditable="true">TC2/G2</td><td data-slot="TDD2" contenteditable="true">TDD2</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td data-slot="L31" contenteditable="true">L31</td><td data-slot="L32" contenteditable="true">L32</td><td data-slot="L33" contenteditable="true">L33</td><td data-slot="L34" contenteditable="true">L34</td><td data-slot="L35" contenteditable="true">L35</td><td data-slot="L36" contenteditable="true">L36</td>
+                    </tr>
+                    <tr>
+                        <td data-slot="D2" contenteditable="true">D2</td><td data-slot="TF2/G2" contenteditable="true">TF2/G2</td><td data-slot="E2/SC1" contenteditable="true">E2/SC1</td><td data-slot="B2" contenteditable="true">B2</td><td data-slot="TCC2" contenteditable="true">TCC2</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td data-slot="L37" contenteditable="true">L37</td><td data-slot="L38" contenteditable="true">L38</td><td data-slot="L39" contenteditable="true">L39</td><td data-slot="L40" contenteditable="true">L40</td><td data-slot="L41" contenteditable="true">L41</td><td data-slot="L42" contenteditable="true">L42</td>
+                    </tr>
+                    <tr>
+                        <td data-slot="TE2/SE1" contenteditable="true">TE2/SE1</td><td data-slot="C2" contenteditable="true">C2</td><td data-slot="A2" contenteditable="true">A2</td><td data-slot="TD2/TG2" contenteditable="true">TD2/TG2</td><td data-slot="TGG2" contenteditable="true">TGG2</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td data-slot="L43" contenteditable="true">L43</td><td data-slot="L44" contenteditable="true">L44</td><td data-slot="L45" contenteditable="true">L45</td><td data-slot="L46" contenteditable="true">L46</td><td data-slot="L47" contenteditable="true">L47</td><td data-slot="L48" contenteditable="true">L48</td>
+                    </tr>
+                    <tr>
+                        <td data-slot="C2" contenteditable="true">C2</td><td data-slot="TB2" contenteditable="true">TB2</td><td data-slot="TA2" contenteditable="true">TA2</td><td data-slot="F2" contenteditable="true">F2</td><td data-slot="TEE2" contenteditable="true">TEE2</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td data-slot="L49" contenteditable="true">L49</td><td data-slot="L50" contenteditable="true">L50</td><td data-slot="L51" contenteditable="true">L51</td><td data-slot="L52" contenteditable="true">L52</td><td data-slot="L53" contenteditable="true">L53</td><td data-slot="L54" contenteditable="true">L54</td>
+                    </tr>
+                    <tr>
+                        <td data-slot="D2" contenteditable="true">D2</td><td data-slot="E2/SD1" contenteditable="true">E2/SD1</td><td data-slot="TAA2/ECS" contenteditable="true">TAA2/ECS</td><td data-slot="TBB2/CLUB" contenteditable="true">TBB2/CLUB</td><td data-slot="TFF2" contenteditable="true">TFF2</td><td data-slot="" contenteditable="true"></td>
+                    </tr>
+                    <tr>
+                        <td data-slot="L55" contenteditable="true">L55</td><td data-slot="L56" contenteditable="true">L56</td><td data-slot="L57" contenteditable="true">L57</td><td data-slot="L58" contenteditable="true">L58</td><td data-slot="L59" contenteditable="true">L59</td><td data-slot="L60" contenteditable="true">L60</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- DATA MAPPINGS BASED ON THE IMAGE ---
+
+    const theorySlots = ['A1','B1','C1','D1','E1','F1','G1','A2','B2','C2','D2','E2','F2','G2'];
+    const creditSlotMapping = {
+        'A1': { '4': 'A1+TA1+TAA1', '3': 'A1+TA1', '2': 'A1', '1': 'TA1' },
+        'B1': { '4': 'B1+TB1+TBB1', '3': 'B1+TB1', '2': 'B1', '1': 'TB1' },
+        'C1': { '4': 'C1+TC1+TCC1', '3': 'C1+TC1', '2': 'C1', '1': 'TC1' }, // Simplified C1+SC1+TC1 to C1+TC1+TCC1 as per common pattern
+        'D1': { '4': 'D1+TD1+TDD1', '3': 'D1+TD1', '2': 'D1', '1': 'TD1' },
+        'E1': { '4': 'E1+TE1+TEE1', '3': 'E1+TE1', '2': 'E1', '1': 'TE1' },
+        'F1': { '4': 'F1+TF1+TFF1', '3': 'F1+TF1', '2': 'F1', '1': 'TF1' },
+        'G1': { '4': 'G1+TG1+TGG1', '3': 'G1+TG1', '2': 'G1', '1': 'TG1' },
+        'A2': { '4': 'A2+TA2+TAA2', '3': 'A2+TA2', '2': 'A2', '1': 'TA2' },
+        'B2': { '4': 'B2+TB2+TBB2', '3': 'B2+TB2', '2': 'B2', '1': 'TB2' },
+        'C2': { '4': 'C2+TC2+TCC2', '3': 'C2+TC2', '2': 'C2', '1': 'TC2' },
+        'D2': { '4': 'D2+TD2+TDD2', '3': 'D2+TD2', '2': 'D2', '1': 'TD2' },
+        'E2': { '4': 'E2+TE2+TEE2', '3': 'E2+TE2', '2': 'E2', '1': 'TE2' },
+        'F2': { '4': 'F2+TF2+TFF2', '3': 'F2+TF2', '2': 'F2', '1': 'TF2' },
+        'G2': { '4': 'G2+TG2+TGG2', '3': 'G2+TG2', '2': 'G2', '1': 'TG2' }
+    };
+
+    // --- DOM ELEMENT REFERENCES ---
+    const theorySlotSelect = document.getElementById('theory-slot');
+    const addCourseBtn = document.getElementById('add-course-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const courseList = document.getElementById('course-list');
+    const allCells = document.querySelectorAll('td[data-slot]');
+
+    let addedCourses = [];
+
+    // --- INITIALIZATION ---
+
+    // Populate theory slots dropdown
+    theorySlots.forEach(slot => {
+        const option = document.createElement('option');
+        option.value = slot;
+        option.textContent = slot;
+        theorySlotSelect.appendChild(option);
+    });
+
+    // Make cells editable and handle manual input for clash detection
+    allCells.forEach(cell => {
+        cell.addEventListener('input', () => {
+            const originalSlot = cell.getAttribute('data-slot');
+            if (cell.textContent.trim() && cell.textContent !== originalSlot) {
+                cell.dataset.occupied = 'true';
+            } else {
+                delete cell.dataset.occupied;
+                 // If user clears the cell, restore original slot text to avoid confusion
+                if (!cell.textContent.trim()) {
+                    cell.textContent = originalSlot;
+                }
+            }
+        });
+    });
+
+    // --- CORE FUNCTIONS ---
+
+    const getRandomColor = () => {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    };
+    
+    const findCellsForSlot = (slot) => {
+        const matchingCells = [];
+        allCells.forEach(cell => {
+            const cellSlots = cell.getAttribute('data-slot').split('/');
+            if (cellSlots.includes(slot)) {
+                matchingCells.push(cell);
+            }
+        });
+        return matchingCells;
+    };
+
+    const addCourse = () => {
+        const courseName = document.getElementById('course-name').value;
+        const shortName = document.getElementById('short-name').value;
+        const credits = document.getElementById('credits').value;
+        const baseTheorySlot = theorySlotSelect.value;
+        const labSlotsRaw = document.getElementById('lab-slots').value;
+
+        if (!shortName || (!baseTheorySlot && !labSlotsRaw)) {
+            alert('Please provide a Short Name and at least one Theory or Lab slot.');
+            return;
+        }
+
+        const course = {
+            id: Date.now(),
+            name: courseName || shortName,
+            shortName: shortName,
+            color: getRandomColor(),
+            slots: []
+        };
+        
+        // Determine theory slots to fill
+        if (baseTheorySlot) {
+            const theorySlotGroup = creditSlotMapping[baseTheorySlot][credits];
+            course.slots.push(...theorySlotGroup.split('+'));
+        }
+
+        // Determine lab slots to fill
+        if (labSlotsRaw) {
+            const labSlots = labSlotsRaw.toUpperCase().split(/[,+]/).map(s => s.trim()).filter(Boolean);
+            course.slots.push(...labSlots);
+        }
+
+        // --- Clash Detection ---
+        let isClash = false;
+        for (const slot of course.slots) {
+            const cells = findCellsForSlot(slot);
+            for (const cell of cells) {
+                if (cell.dataset.occupied) {
+                    isClash = true;
+                    alert(`Clash detected! Slot ${slot} is already occupied by ${cell.textContent}.`);
+                    break;
+                }
+            }
+            if(isClash) break;
+        }
+
+        if (isClash) return;
+
+        // --- Fill Timetable ---
+        course.slots.forEach(slot => {
+            const cells = findCellsForSlot(slot);
+            cells.forEach(cell => {
+                cell.textContent = course.shortName;
+                cell.style.backgroundColor = course.color;
+                cell.style.color = 'white';
+                cell.dataset.occupied = 'true';
+                cell.dataset.courseId = course.id;
+            });
+        });
+
+        addedCourses.push(course);
+        updateCourseList();
+        clearInputs();
+    };
+    
+    const removeCourse = (courseId) => {
+        const id = parseInt(courseId, 10);
+        // Find all cells for this course and clear them
+        const cellsForCourse = document.querySelectorAll(`td[data-course-id="${id}"]`);
+        cellsForCourse.forEach(cell => {
+            cell.textContent = cell.getAttribute('data-slot');
+            cell.style.backgroundColor = '';
+            cell.style.color = '';
+            delete cell.dataset.occupied;
+            delete cell.dataset.courseId;
+        });
+
+        // Remove course from the array
+        addedCourses = addedCourses.filter(c => c.id !== id);
+
+        // Update the displayed list
+        updateCourseList();
+    };
+
+    const clearTimetable = () => {
+        allCells.forEach(cell => {
+            cell.textContent = cell.getAttribute('data-slot');
+            cell.style.backgroundColor = '';
+            cell.style.color = '';
+            delete cell.dataset.occupied;
+            delete cell.dataset.courseId;
+        });
+        addedCourses = [];
+        updateCourseList();
+    };
+
+    const updateCourseList = () => {
+        courseList.innerHTML = '';
+        addedCourses.forEach(course => {
+            const li = document.createElement('li');
+            li.style.backgroundColor = course.color;
+            
+            const text = document.createTextNode(course.name || course.shortName);
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'x';
+            removeBtn.className = 'remove-course-btn';
+            removeBtn.dataset.courseId = course.id;
+            removeBtn.addEventListener('click', () => removeCourse(removeBtn.dataset.courseId));
+            
+            li.appendChild(text);
+            li.appendChild(removeBtn);
+            courseList.appendChild(li);
+        });
+    };
+
+    const clearInputs = () => {
+        document.getElementById('course-name').value = '';
+        document.getElementById('short-name').value = '';
+        document.getElementById('lab-slots').value = '';
+        theorySlotSelect.value = '';
+        document.getElementById('credits').value = '4';
+    };
+
+
+    // --- EVENT LISTENERS ---
+    addCourseBtn.addEventListener('click', addCourse);
+    clearBtn.addEventListener('click', clearTimetable);
+});
+</script>
+
+</body>
+</html> 
