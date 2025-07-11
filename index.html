@@ -341,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTimetablesSelect = document.getElementById('saved-timetables-select');
 
     let addedCourses = [];
+    let teacherPreferences = [];
 
     // --- INITIALIZATION ---
     const init = () => {
@@ -420,6 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearTimetable = () => {
         allCells.forEach(cell => clearCell(cell));
         addedCourses = [];
+        teacherPreferences = [];
         updateUI();
     };
 
@@ -435,32 +437,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const course = addedCourses.find(c => c.shortName.toLowerCase() === courseShortName.toLowerCase());
-        
-        if (course) {
-            if (!course.slots.includes(slot)) {
-                alert(`The slot "${slot}" is not valid for the course "${course.shortName}".\nValid slots are: ${course.slots.join(', ')}`);
-                return;
-            }
-            course.teacherPrefs.push({ id: Date.now(), slot, teacherName, priority });
-            course.teacherPrefs.sort((a, b) => a.priority - b.priority);
-            updateTeacherPrefsTable();
-            // Clear only teacher-related inputs
-            document.getElementById('teacher-course-name').value = '';
-            document.getElementById('teacher-slot-name').value = '';
-            document.getElementById('teacher-name').value = '';
-            document.getElementById('teacher-priority').value = '1';
-        } else {
-            alert(`Course with short name "${courseShortName}" not found.`);
-        }
+        teacherPreferences.push({
+            id: Date.now(),
+            courseShortName: courseShortName,
+            slot: slot,
+            teacherName: teacherName,
+            priority: priority
+        });
+        teacherPreferences.sort((a, b) => a.priority - b.priority);
+        updateTeacherPrefsTable();
+
+        // Clear only teacher-related inputs
+        document.getElementById('teacher-course-name').value = '';
+        document.getElementById('teacher-slot-name').value = '';
+        document.getElementById('teacher-name').value = '';
+        document.getElementById('teacher-priority').value = '1';
     };
     
-    const removeTeacherPref = (courseId, prefId) => {
-        const course = addedCourses.find(c => c.id === courseId);
-        if(course) {
-            course.teacherPrefs = course.teacherPrefs.filter(p => p.id !== prefId);
-            updateTeacherPrefsTable();
-        }
+    const removeTeacherPref = (prefId) => {
+        teacherPreferences = teacherPreferences.filter(p => p.id !== prefId);
+        updateTeacherPrefsTable();
     };
 
     // --- SAVE/LOAD MANAGEMENT ---
@@ -471,7 +467,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const savedTimetables = getSavedTimetables();
-        savedTimetables[name] = addedCourses;
+        savedTimetables[name] = {
+            courses: addedCourses,
+            prefs: teacherPreferences
+        };
         localStorage.setItem('savedTimetables', JSON.stringify(savedTimetables));
         populateSavedTimetablesDropdown();
         alert(`Timetable "${name}" saved!`);
@@ -487,7 +486,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataToLoad = savedTimetables[name];
         if (dataToLoad) {
             clearTimetable();
-            addedCourses = dataToLoad;
+            addedCourses = dataToLoad.courses || [];
+            teacherPreferences = dataToLoad.prefs || [];
             addedCourses.forEach(course => fillSlotsForCourse(course));
             updateUI();
         }
@@ -531,15 +531,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const updateTeacherPrefsTable = () => {
         teacherPrefsTableBody.innerHTML = '';
-        addedCourses.forEach(course => {
-            course.teacherPrefs.forEach(pref => {
-                const row = teacherPrefsTableBody.insertRow();
-                row.innerHTML = `<td>${course.shortName}</td><td>${pref.slot}</td><td>${pref.teacherName}</td><td>${pref.priority}</td>
-                                 <td><button class="btn-danger remove-teacher-btn" data-course-id="${course.id}" data-pref-id="${pref.id}">X</button></td>`;
-            });
+        teacherPreferences.forEach(pref => {
+            const row = teacherPrefsTableBody.insertRow();
+            row.innerHTML = `<td>${pref.courseShortName}</td><td>${pref.slot}</td><td>${pref.teacherName}</td><td>${pref.priority}</td>
+                                 <td><button class="btn-danger remove-teacher-btn" data-pref-id="${pref.id}">X</button></td>`;
         });
         document.querySelectorAll('.remove-teacher-btn').forEach(btn => {
-           btn.addEventListener('click', e => removeTeacherPref(parseInt(e.target.dataset.courseId), parseInt(e.target.dataset.prefId)));
+           btn.addEventListener('click', e => removeTeacherPref(parseInt(e.target.dataset.prefId)));
         });
     };
     
