@@ -284,8 +284,8 @@
     <!-- Teacher Preferences -->
     <h2 style="margin-top: 40px;">2. Add Teacher Preferences</h2>
     <div class="teacher-controls">
-        <div class="control-group"><label for="teacher-course-select">Select Course</label><select id="teacher-course-select"></select></div>
-        <div class="control-group"><label for="teacher-slot-select">Select Slot</label><select id="teacher-slot-select"></select></div>
+        <div class="control-group"><label for="teacher-course-name">Course Short Name</label><input type="text" id="teacher-course-name" placeholder="e.g., OS"></div>
+        <div class="control-group"><label for="teacher-slot-name">Slot</label><input type="text" id="teacher-slot-name" placeholder="e.g., A1 or L14"></div>
         <div class="control-group"><label for="teacher-name">Teacher Name</label><input type="text" id="teacher-name" placeholder="e.g., Prof. Smith"></div>
         <div class="control-group"><label for="teacher-priority">Priority</label><input type="number" id="teacher-priority" min="1" value="1"></div>
         <button id="add-teacher-btn" class="btn-primary">Add Preference</button>
@@ -331,8 +331,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBtn = document.getElementById('clear-btn');
     
     // Teacher Controls
-    const teacherCourseSelect = document.getElementById('teacher-course-select');
-    const teacherSlotSelect = document.getElementById('teacher-slot-select');
     const addTeacherBtn = document.getElementById('add-teacher-btn');
     const teacherPrefsTableBody = document.querySelector('#teacher-prefs-table tbody');
 
@@ -372,7 +370,6 @@ document.addEventListener('DOMContentLoaded', () => {
         saveBtn.addEventListener('click', saveTimetable);
         loadBtn.addEventListener('click', loadTimetable);
         deleteBtn.addEventListener('click', deleteTimetable);
-        teacherCourseSelect.addEventListener('change', updateTeacherSlotSelect);
     };
 
     // --- COURSE MANAGEMENT ---
@@ -428,23 +425,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- TEACHER PREFERENCE MANAGEMENT ---
     const addTeacherPreference = () => {
-        const courseId = parseInt(teacherCourseSelect.value, 10);
-        const slot = teacherSlotSelect.value;
+        const courseShortName = document.getElementById('teacher-course-name').value.trim();
+        const slot = document.getElementById('teacher-slot-name').value.trim().toUpperCase();
         const teacherName = document.getElementById('teacher-name').value.trim();
         const priority = document.getElementById('teacher-priority').value;
 
-        if (!courseId || !slot || !teacherName) {
-            alert('Please select a course, a slot, and enter a teacher name.');
+        if (!courseShortName || !slot || !teacherName) {
+            alert('Please enter a course short name, a slot, and a teacher name.');
             return;
         }
 
-        const course = addedCourses.find(c => c.id === courseId);
+        const course = addedCourses.find(c => c.shortName.toLowerCase() === courseShortName.toLowerCase());
+        
         if (course) {
+            if (!course.slots.includes(slot)) {
+                alert(`The slot "${slot}" is not valid for the course "${course.shortName}".\nValid slots are: ${course.slots.join(', ')}`);
+                return;
+            }
             course.teacherPrefs.push({ id: Date.now(), slot, teacherName, priority });
-            course.teacherPrefs.sort((a,b) => a.priority - b.priority);
+            course.teacherPrefs.sort((a, b) => a.priority - b.priority);
             updateTeacherPrefsTable();
+            // Clear only teacher-related inputs
+            document.getElementById('teacher-course-name').value = '';
+            document.getElementById('teacher-slot-name').value = '';
+            document.getElementById('teacher-name').value = '';
+            document.getElementById('teacher-priority').value = '1';
+        } else {
+            alert(`Course with short name "${courseShortName}" not found.`);
         }
-        document.getElementById('teacher-name').value = '';
     };
     
     const removeTeacherPref = (courseId, prefId) => {
@@ -505,7 +513,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI UPDATE FUNCTIONS ---
     const updateUI = () => {
         updateCourseList();
-        updateTeacherCourseSelect();
         updateTeacherPrefsTable();
     };
 
@@ -520,25 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.remove-course-btn').forEach(btn => {
             btn.addEventListener('click', (e) => removeCourse(e.target.dataset.courseId));
         });
-    };
-
-    const updateTeacherCourseSelect = () => {
-        teacherCourseSelect.innerHTML = '<option value="">-- Select Course --</option>';
-        addedCourses.forEach(course => {
-            teacherCourseSelect.innerHTML += `<option value="${course.id}">${course.name}</option>`;
-        });
-        updateTeacherSlotSelect();
-    };
-    
-    const updateTeacherSlotSelect = () => {
-        teacherSlotSelect.innerHTML = '<option value="">-- Select Slot --</option>';
-        const courseId = parseInt(teacherCourseSelect.value, 10);
-        const course = addedCourses.find(c => c.id === courseId);
-        if (course) {
-            course.slots.forEach(slot => {
-                teacherSlotSelect.innerHTML += `<option value="${slot}">${slot}</option>`;
-            });
-        }
     };
     
     const updateTeacherPrefsTable = () => {
